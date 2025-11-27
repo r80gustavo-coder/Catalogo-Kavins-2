@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { UserRole, Product, ProductVariant, SizeRange, Color } from '../types';
 import { CATEGORIES, SIZE_OPTIONS } from '../constants';
-import { Trash2, Plus, X, Upload, Check, Loader2, Edit, RefreshCw } from 'lucide-react';
+import { Trash2, Plus, X, Upload, Check, Loader2, Edit, RefreshCw, Save } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -40,6 +40,8 @@ const AdminDashboard: React.FC = () => {
   // Color Picker State
   const [newColorHex, setNewColorHex] = useState('#000000');
   const [newColorName, setNewColorName] = useState('');
+  const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null); // Track which color is being edited
+
   const variantFormRef = useRef<HTMLDivElement>(null);
 
   // Load product if editing
@@ -122,15 +124,43 @@ const AdminDashboard: React.FC = () => {
     if (coverIndex >= index && coverIndex > 0) setCoverIndex(coverIndex - 1);
   };
 
-  const addColor = () => {
-    if (newColorName) {
+  const handleAddOrUpdateColor = () => {
+    if (!newColorName) return;
+
+    if (editingColorIndex !== null) {
+      // Update existing color
+      setTempColors(prev => prev.map((c, i) => 
+        i === editingColorIndex ? { name: newColorName, hex: newColorHex } : c
+      ));
+      setEditingColorIndex(null); // Exit edit mode
+    } else {
+      // Add new color
       setTempColors(prev => [...prev, { name: newColorName, hex: newColorHex }]);
-      setNewColorName('');
     }
+    
+    // Reset inputs
+    setNewColorName('');
+    setNewColorHex('#000000');
+  };
+
+  const editColor = (index: number) => {
+    const colorToEdit = tempColors[index];
+    setNewColorName(colorToEdit.name);
+    setNewColorHex(colorToEdit.hex);
+    setEditingColorIndex(index);
+  };
+
+  const cancelColorEdit = () => {
+    setNewColorName('');
+    setNewColorHex('#000000');
+    setEditingColorIndex(null);
   };
 
   const removeTempColor = (idx: number) => {
     setTempColors(prev => prev.filter((_, i) => i !== idx));
+    if (editingColorIndex === idx) {
+      cancelColorEdit();
+    }
   };
 
   const handleSaveVariant = () => {
@@ -171,6 +201,11 @@ const AdminDashboard: React.FC = () => {
     setTempPriceSac(variant.priceSacoleira.toString());
     setTempColors([...variant.colors]);
     
+    // Reset color edit state
+    setEditingColorIndex(null);
+    setNewColorName('');
+    setNewColorHex('#000000');
+    
     // Scroll to form
     variantFormRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -183,6 +218,7 @@ const AdminDashboard: React.FC = () => {
     setTempPriceRep('');
     setTempPriceSac('');
     setTempSize(SizeRange.P_GG);
+    cancelColorEdit();
   };
 
   const removeVariant = (variantId: string) => {
@@ -395,30 +431,58 @@ const AdminDashboard: React.FC = () => {
 
             {/* Color Picker for Variant */}
             <div className="mt-4">
-               <label className="block text-xs font-medium text-gray-700 mb-2">Cores Disponíveis para esta Referência</label>
+               <label className="block text-xs font-medium text-gray-700 mb-2">Cores Disponíveis para esta Referência (Clique para editar)</label>
                <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
                   {tempColors.map((c, idx) => (
-                    <div key={idx} className="flex items-center bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">
+                    <div 
+                      key={idx} 
+                      className={`flex items-center bg-white border rounded-full px-3 py-1 shadow-sm cursor-pointer transition-all hover:bg-gray-50 ${editingColorIndex === idx ? 'ring-2 ring-primary border-primary' : 'border-gray-200'}`}
+                      onClick={() => editColor(idx)}
+                      title="Clique para editar esta cor"
+                    >
                       <span className="w-5 h-5 rounded-full mr-2 border border-gray-300" style={{ backgroundColor: c.hex }}></span>
                       <span className="text-xs text-gray-700">{c.name}</span>
-                      <button type="button" onClick={() => removeTempColor(idx)} className="ml-2 text-gray-400 hover:text-red-500"><X size={12}/></button>
+                      <button 
+                        type="button" 
+                        onClick={(e) => { e.stopPropagation(); removeTempColor(idx); }} 
+                        className="ml-2 text-gray-400 hover:text-red-500"
+                        title="Remover cor"
+                      >
+                        <X size={12}/>
+                      </button>
                     </div>
                   ))}
                   {tempColors.length === 0 && (
                     <span className="text-xs text-gray-400 italic py-1">Nenhuma cor adicionada.</span>
                   )}
                </div>
-               <div className="flex gap-2 items-end border-t border-gray-200 pt-3 mt-2">
+               
+               <div className={`flex gap-2 items-end border-t border-gray-200 pt-3 mt-2 ${editingColorIndex !== null ? 'bg-blue-50 p-2 rounded' : ''}`}>
                  <div>
                     <label className="text-xs text-gray-500">Cor (Hex)</label>
                     <input type="color" value={newColorHex} onChange={e => setNewColorHex(e.target.value)} className="block w-12 h-9 p-0 border border-gray-300 rounded cursor-pointer" />
                  </div>
                  <div className="flex-1">
-                    <label className="text-xs text-gray-500">Nome da Cor</label>
+                    <label className="text-xs text-gray-500">Nome da Cor {editingColorIndex !== null ? '(Editando)' : ''}</label>
                     <input type="text" value={newColorName} onChange={e => setNewColorName(e.target.value)} placeholder="Ex: Azul Royal" className="block w-full border border-gray-300 rounded p-1.5 text-sm" />
                  </div>
-                 <button type="button" onClick={addColor} className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-2 rounded text-sm flex items-center">
-                   <Plus size={14} className="mr-1" /> Add Cor
+                 
+                 {editingColorIndex !== null && (
+                   <button type="button" onClick={cancelColorEdit} className="bg-white text-gray-600 border border-gray-300 px-3 py-2 rounded text-sm hover:bg-gray-50">
+                     Cancelar
+                   </button>
+                 )}
+
+                 <button 
+                   type="button" 
+                   onClick={handleAddOrUpdateColor} 
+                   className={`px-3 py-2 rounded text-sm flex items-center text-white ${editingColorIndex !== null ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-800 hover:bg-gray-900'}`}
+                 >
+                   {editingColorIndex !== null ? (
+                     <><RefreshCw size={14} className="mr-1" /> Atualizar Cor</>
+                   ) : (
+                     <><Plus size={14} className="mr-1" /> Add Cor</>
+                   )}
                  </button>
                </div>
             </div>
@@ -435,7 +499,7 @@ const AdminDashboard: React.FC = () => {
                 className={`flex items-center px-4 py-2 text-white rounded shadow-sm transition ${editingVariantId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-secondary hover:bg-yellow-700'}`}
               >
                 {editingVariantId ? (
-                  <> <RefreshCw className="mr-2 h-4 w-4" /> Salvar Alterações da Variante </>
+                  <> <Save className="mr-2 h-4 w-4" /> Salvar Alterações da Variante </>
                 ) : (
                   <> <Check className="mr-2 h-4 w-4" /> Adicionar Opção </>
                 )}
