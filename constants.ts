@@ -6,7 +6,7 @@ export const CATEGORIES = [
   "Conjuntos",
   "Blusas",
   "Calças",
-  "Macacões",
+  "Camisetas",
   "Promoção"
 ];
 
