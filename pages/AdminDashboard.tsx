@@ -129,9 +129,11 @@ const AdminDashboard: React.FC = () => {
 
     if (editingColorIndex !== null) {
       // Update existing color
-      setTempColors(prev => prev.map((c, i) => 
-        i === editingColorIndex ? { name: newColorName, hex: newColorHex } : c
-      ));
+      setTempColors(prev => {
+        const newColors = [...prev];
+        newColors[editingColorIndex] = { name: newColorName, hex: newColorHex };
+        return newColors;
+      });
       setEditingColorIndex(null); // Exit edit mode
     } else {
       // Add new color
@@ -158,8 +160,12 @@ const AdminDashboard: React.FC = () => {
 
   const removeTempColor = (idx: number) => {
     setTempColors(prev => prev.filter((_, i) => i !== idx));
+    // If we are editing the color that was deleted, cancel edit
     if (editingColorIndex === idx) {
       cancelColorEdit();
+    } else if (editingColorIndex !== null && editingColorIndex > idx) {
+      // If we deleted a color before the one being edited, adjust index
+      setEditingColorIndex(editingColorIndex - 1);
     }
   };
 
