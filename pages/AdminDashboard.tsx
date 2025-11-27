@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { UserRole, Product, ProductVariant, SizeRange, Color } from '../types';
 import { CATEGORIES, SIZE_OPTIONS } from '../constants';
-import { Trash2, Plus, X, Upload, Check, Loader2 } from 'lucide-react';
+import { Trash2, Plus, X, Upload, Check, Loader2, Edit, RefreshCw } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -27,6 +27,7 @@ const AdminDashboard: React.FC = () => {
 
   // Variant Form State
   const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   
   // Variant Input States
   const [tempVariantName, setTempVariantName] = useState('');
@@ -39,6 +40,7 @@ const AdminDashboard: React.FC = () => {
   // Color Picker State
   const [newColorHex, setNewColorHex] = useState('#000000');
   const [newColorName, setNewColorName] = useState('');
+  const variantFormRef = useRef<HTMLDivElement>(null);
 
   // Load product if editing
   useEffect(() => {
@@ -131,14 +133,14 @@ const AdminDashboard: React.FC = () => {
     setTempColors(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const addVariant = () => {
+  const handleSaveVariant = () => {
     if (!tempRef || !tempPriceRep || !tempPriceSac || tempColors.length === 0) {
       alert("Preencha todos os campos da variante (Referência, Preços e pelo menos uma cor).");
       return;
     }
 
-    const newVariant: ProductVariant = {
-      id: Date.now().toString() + Math.random().toString(),
+    const variantData: ProductVariant = {
+      id: editingVariantId || Date.now().toString() + Math.random().toString(),
       name: tempVariantName,
       reference: tempRef,
       sizeRange: tempSize,
@@ -147,16 +149,47 @@ const AdminDashboard: React.FC = () => {
       colors: [...tempColors]
     };
 
-    setVariants(prev => [...prev, newVariant]);
+    if (editingVariantId) {
+      // Update existing
+      setVariants(prev => prev.map(v => v.id === editingVariantId ? variantData : v));
+      setEditingVariantId(null);
+    } else {
+      // Add new
+      setVariants(prev => [...prev, variantData]);
+    }
     
     // Clear variant inputs
+    clearVariantForm();
+  };
+
+  const startEditingVariant = (variant: ProductVariant) => {
+    setEditingVariantId(variant.id);
+    setTempVariantName(variant.name || '');
+    setTempRef(variant.reference);
+    setTempSize(variant.sizeRange);
+    setTempPriceRep(variant.priceRepresentative.toString());
+    setTempPriceSac(variant.priceSacoleira.toString());
+    setTempColors([...variant.colors]);
+    
+    // Scroll to form
+    variantFormRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const clearVariantForm = () => {
+    setEditingVariantId(null);
     setTempColors([]);
     setTempRef('');
     setTempVariantName('');
+    setTempPriceRep('');
+    setTempPriceSac('');
+    setTempSize(SizeRange.P_GG);
   };
 
   const removeVariant = (variantId: string) => {
     setVariants(prev => prev.filter(v => v.id !== variantId));
+    if (editingVariantId === variantId) {
+      clearVariantForm();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -174,7 +207,7 @@ const AdminDashboard: React.FC = () => {
     setIsSaving(true);
 
     const productData: Product = {
-      id: id || crypto.randomUUID(), // Use UUID for new Supabase entries
+      id: id || crypto.randomUUID(), 
       name,
       description,
       fabric,
@@ -286,21 +319,28 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         {/* Variants Builder */}
-        <div className="border-t pt-6 bg-gray-50 p-4 rounded-md">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Configuração de Tamanhos e Preços</h2>
+        <div className="border-t pt-6 bg-gray-50 p-4 rounded-md" ref={variantFormRef}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-medium text-gray-900">Configuração de Tamanhos e Preços</h2>
+            {editingVariantId && (
+              <span className="text-sm text-secondary font-bold animate-pulse">
+                Modo Edição Ativo
+              </span>
+            )}
+          </div>
           
           {/* List existing variants */}
           {variants.length > 0 && (
             <div className="mb-6 space-y-2">
               {variants.map((v) => (
-                <div key={v.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3 rounded border shadow-sm">
+                <div key={v.id} className={`flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3 rounded border shadow-sm transition-all ${editingVariantId === v.id ? 'ring-2 ring-secondary border-secondary' : ''}`}>
                   <div className="mb-2 sm:mb-0">
                     {v.name && <div className="text-xs text-gray-500 font-medium uppercase mb-0.5">{v.name}</div>}
-                    <div className="flex items-center">
+                    <div className="flex items-center flex-wrap">
                         <span className="font-bold text-primary mr-2">Ref: {v.reference}</span>
                         <span className="text-gray-300 mx-1">|</span>
                         <span className="text-sm bg-gray-100 px-2 py-1 rounded mx-2">{v.sizeRange}</span>
-                        <div className="flex gap-1 ml-2">
+                        <div className="flex gap-1 ml-2 mt-1 sm:mt-0">
                             {v.colors.map((c, i) => (
                                 <div key={i} className="w-5 h-5 rounded-full border border-gray-200 shadow-sm" style={{ backgroundColor: c.hex }} title={c.name}></div>
                             ))}
@@ -312,72 +352,95 @@ const AdminDashboard: React.FC = () => {
                         <div className="text-green-700"><span className="text-xs text-gray-400">Rep:</span> R$ {v.priceRepresentative}</div>
                         <div className="text-blue-700"><span className="text-xs text-gray-400">Sac:</span> R$ {v.priceSacoleira}</div>
                      </div>
-                     <button type="button" onClick={() => removeVariant(v.id)} className="text-red-500 hover:text-red-700">
-                        <Trash2 size={18} />
-                     </button>
+                     <div className="flex gap-2">
+                        <button type="button" onClick={() => startEditingVariant(v)} className="text-blue-500 hover:text-blue-700 p-1 bg-blue-50 rounded" title="Editar">
+                           <Edit size={16} />
+                        </button>
+                        <button type="button" onClick={() => removeVariant(v.id)} className="text-red-500 hover:text-red-700 p-1 bg-red-50 rounded" title="Excluir">
+                           <Trash2 size={16} />
+                        </button>
+                     </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Add New Variant */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div className="col-span-1 md:col-span-2">
-                <label className="block text-xs font-medium text-gray-700">Nome da Opção (Ex: Estampa Floral / Conjunto Azul) - *Opcional</label>
-                <input type="text" value={tempVariantName} onChange={e => setTempVariantName(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded p-2" placeholder="Nome específico para esta referência" />
-             </div>
-             <div>
-               <label className="block text-xs font-medium text-gray-700">Referência (Código)</label>
-               <input type="text" value={tempRef} onChange={e => setTempRef(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded p-2" placeholder="001" />
-             </div>
-             <div>
-               <label className="block text-xs font-medium text-gray-700">Tamanho</label>
-               <select value={tempSize} onChange={e => setTempSize(e.target.value as SizeRange)} className="mt-1 block w-full border border-gray-300 rounded p-2">
-                 {SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-               </select>
-             </div>
-             <div>
-               <label className="block text-xs font-medium text-gray-700">Preço Representante</label>
-               <input type="number" step="0.01" value={tempPriceRep} onChange={e => setTempPriceRep(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded p-2" />
-             </div>
-             <div>
-               <label className="block text-xs font-medium text-gray-700">Preço Sacoleira</label>
-               <input type="number" step="0.01" value={tempPriceSac} onChange={e => setTempPriceSac(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded p-2" />
-             </div>
-          </div>
-
-          {/* Color Picker for Variant */}
-          <div className="mt-4">
-             <label className="block text-xs font-medium text-gray-700 mb-2">Cores Disponíveis para esta Referência</label>
-             <div className="flex flex-wrap gap-2 mb-2">
-                {tempColors.map((c, idx) => (
-                  <div key={idx} className="flex items-center bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">
-                    <span className="w-5 h-5 rounded-full mr-2 border border-gray-300" style={{ backgroundColor: c.hex }}></span>
-                    <span className="text-xs text-gray-700">{c.name}</span>
-                    <button type="button" onClick={() => removeTempColor(idx)} className="ml-2 text-gray-400 hover:text-red-500"><X size={12}/></button>
-                  </div>
-                ))}
-             </div>
-             <div className="flex gap-2 items-end">
+          {/* Add/Edit Variant Form */}
+          <div className={`transition-all ${editingVariantId ? 'bg-yellow-50 p-4 rounded border border-yellow-200' : ''}`}>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="col-span-1 md:col-span-2">
+                  <label className="block text-xs font-medium text-gray-700">Nome da Opção (Ex: Estampa Floral / Conjunto Azul) - *Opcional</label>
+                  <input type="text" value={tempVariantName} onChange={e => setTempVariantName(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded p-2" placeholder="Nome específico para esta referência" />
+               </div>
                <div>
-                  <label className="text-xs text-gray-500">Cor (Hex)</label>
-                  <input type="color" value={newColorHex} onChange={e => setNewColorHex(e.target.value)} className="block w-12 h-9 p-0 border border-gray-300 rounded cursor-pointer" />
+                 <label className="block text-xs font-medium text-gray-700">Referência (Código)</label>
+                 <input type="text" value={tempRef} onChange={e => setTempRef(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded p-2" placeholder="001" />
                </div>
-               <div className="flex-1">
-                  <label className="text-xs text-gray-500">Nome da Cor</label>
-                  <input type="text" value={newColorName} onChange={e => setNewColorName(e.target.value)} placeholder="Ex: Azul Royal" className="block w-full border border-gray-300 rounded p-1.5 text-sm" />
+               <div>
+                 <label className="block text-xs font-medium text-gray-700">Tamanho</label>
+                 <select value={tempSize} onChange={e => setTempSize(e.target.value as SizeRange)} className="mt-1 block w-full border border-gray-300 rounded p-2">
+                   {SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                 </select>
                </div>
-               <button type="button" onClick={addColor} className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-2 rounded text-sm">
-                 <Plus size={16} />
-               </button>
-             </div>
-          </div>
+               <div>
+                 <label className="block text-xs font-medium text-gray-700">Preço Representante</label>
+                 <input type="number" step="0.01" value={tempPriceRep} onChange={e => setTempPriceRep(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded p-2" />
+               </div>
+               <div>
+                 <label className="block text-xs font-medium text-gray-700">Preço Sacoleira</label>
+                 <input type="number" step="0.01" value={tempPriceSac} onChange={e => setTempPriceSac(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded p-2" />
+               </div>
+            </div>
 
-          <div className="mt-4 flex justify-end">
-            <button type="button" onClick={addVariant} className="flex items-center px-4 py-2 bg-secondary text-white rounded hover:bg-yellow-700 transition">
-              <Check className="mr-2 h-4 w-4" /> Adicionar Opção
-            </button>
+            {/* Color Picker for Variant */}
+            <div className="mt-4">
+               <label className="block text-xs font-medium text-gray-700 mb-2">Cores Disponíveis para esta Referência</label>
+               <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
+                  {tempColors.map((c, idx) => (
+                    <div key={idx} className="flex items-center bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">
+                      <span className="w-5 h-5 rounded-full mr-2 border border-gray-300" style={{ backgroundColor: c.hex }}></span>
+                      <span className="text-xs text-gray-700">{c.name}</span>
+                      <button type="button" onClick={() => removeTempColor(idx)} className="ml-2 text-gray-400 hover:text-red-500"><X size={12}/></button>
+                    </div>
+                  ))}
+                  {tempColors.length === 0 && (
+                    <span className="text-xs text-gray-400 italic py-1">Nenhuma cor adicionada.</span>
+                  )}
+               </div>
+               <div className="flex gap-2 items-end border-t border-gray-200 pt-3 mt-2">
+                 <div>
+                    <label className="text-xs text-gray-500">Cor (Hex)</label>
+                    <input type="color" value={newColorHex} onChange={e => setNewColorHex(e.target.value)} className="block w-12 h-9 p-0 border border-gray-300 rounded cursor-pointer" />
+                 </div>
+                 <div className="flex-1">
+                    <label className="text-xs text-gray-500">Nome da Cor</label>
+                    <input type="text" value={newColorName} onChange={e => setNewColorName(e.target.value)} placeholder="Ex: Azul Royal" className="block w-full border border-gray-300 rounded p-1.5 text-sm" />
+                 </div>
+                 <button type="button" onClick={addColor} className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-2 rounded text-sm flex items-center">
+                   <Plus size={14} className="mr-1" /> Add Cor
+                 </button>
+               </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              {editingVariantId && (
+                <button type="button" onClick={clearVariantForm} className="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm font-medium">
+                  Cancelar Edição
+                </button>
+              )}
+              <button 
+                type="button" 
+                onClick={handleSaveVariant} 
+                className={`flex items-center px-4 py-2 text-white rounded shadow-sm transition ${editingVariantId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-secondary hover:bg-yellow-700'}`}
+              >
+                {editingVariantId ? (
+                  <> <RefreshCw className="mr-2 h-4 w-4" /> Salvar Alterações da Variante </>
+                ) : (
+                  <> <Check className="mr-2 h-4 w-4" /> Adicionar Opção </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -392,7 +455,7 @@ const AdminDashboard: React.FC = () => {
                 <Loader2 className="animate-spin mr-2" /> Salvando...
                </>
              ) : (
-               id ? 'Atualizar Produto' : 'Salvar Produto'
+               id ? 'Atualizar Produto Completo' : 'Salvar Produto Completo'
              )}
            </button>
         </div>
