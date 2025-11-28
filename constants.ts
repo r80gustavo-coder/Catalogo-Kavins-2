@@ -8,7 +8,7 @@ export const CATEGORIES = [
   "Calças",
   "Macacões",
   "Promoção",
-  "Camisetas"
+  "Camisetas",
 ];
 
 export const SIZE_OPTIONS = [
