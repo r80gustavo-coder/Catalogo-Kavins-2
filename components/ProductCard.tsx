@@ -41,6 +41,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   // Collect all unique references
   const references = Array.from(new Set(product.variants.map(v => v.reference)));
 
+  // Display 'Camisetas' if the legacy category is 'Macacões'
+  const displayCategory = product.category === 'Macacões' ? 'Camisetas' : product.category;
+
   return (
     <Link to={`/product/${product.id}`} className="group block bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300">
       <div className="aspect-portrait w-full relative bg-gray-200 overflow-hidden">
@@ -63,7 +66,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
       <div className="p-4">
         <div className="mb-1 text-xs text-gray-500 uppercase tracking-wide">
-            {product.category}
+            {displayCategory}
         </div>
         <h3 className="text-lg font-medium text-gray-900 group-hover:text-secondary truncate">
           {product.name}

@@ -21,9 +21,16 @@ const Home: React.FC = () => {
 
   const filteredProducts = useMemo(() => {
     return sortedProducts.filter(p => {
-      // Category Filter
-      if (activeCategory !== 'Todos' && p.category !== activeCategory) {
-        return false;
+      // Category Filter with Legacy Support
+      if (activeCategory !== 'Todos') {
+        if (activeCategory === 'Camisetas') {
+           // Show both new Camisetas and legacy Macacões
+           if (p.category !== 'Camisetas' && p.category !== 'Macacões') {
+             return false;
+           }
+        } else if (p.category !== activeCategory) {
+          return false;
+        }
       }
 
       // Search Filter

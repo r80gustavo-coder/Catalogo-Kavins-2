@@ -40,7 +40,7 @@ const AdminDashboard: React.FC = () => {
   // Color Picker State
   const [newColorHex, setNewColorHex] = useState('#000000');
   const [newColorName, setNewColorName] = useState('');
-  const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null); // Track which color is being edited
+  const [editingColorIndex, setEditingColorIndex] = useState<number | null>(null); 
 
   const variantFormRef = useRef<HTMLDivElement>(null);
 
@@ -52,14 +52,18 @@ const AdminDashboard: React.FC = () => {
         setName(product.name);
         setDescription(product.description);
         setFabric(product.fabric);
-        setCategory(product.category);
+        
+        // Auto-fix legacy category
+        if (product.category === 'Macacões') {
+            setCategory('Camisetas');
+        } else {
+            setCategory(product.category);
+        }
+
         setIsFeatured(product.isFeatured);
         setImages(product.images);
         setCoverIndex(product.coverImageIndex);
         setVariants(product.variants);
-      } else {
-        // Product not found, maybe wait or redirect
-        // navigate('/admin'); 
       }
     }
   }, [id, getProduct, isDataLoading]);
@@ -77,12 +81,10 @@ const AdminDashboard: React.FC = () => {
       
       try {
         for (const file of files) {
-          // Generate unique filename
           const fileExt = file.name.split('.').pop();
           const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
           const filePath = `${fileName}`;
 
-          // Upload to Supabase Storage
           const { error: uploadError } = await supabase.storage
             .from('catalog-images')
             .upload(filePath, file);
@@ -93,7 +95,6 @@ const AdminDashboard: React.FC = () => {
             continue;
           }
 
-          // Get Public URL
           const { data } = supabase.storage
             .from('catalog-images')
             .getPublicUrl(filePath);
@@ -104,7 +105,7 @@ const AdminDashboard: React.FC = () => {
         }
 
         if (errorCount > 0) {
-          alert(`${errorCount} imagem(ns) falharam ao enviar. Verifique se executou o script SQL no Supabase corretamente para permitir uploads.`);
+          alert(`${errorCount} imagem(ns) falharam ao enviar. Verifique permissões no Supabase.`);
         }
 
         setImages(prev => [...prev, ...uploadedUrls]);
@@ -113,7 +114,6 @@ const AdminDashboard: React.FC = () => {
         alert("Erro crítico ao fazer upload das imagens.");
       } finally {
         setIsUploading(false);
-        // Clear input value to allow selecting same files again if needed
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     }
@@ -134,7 +134,7 @@ const AdminDashboard: React.FC = () => {
         newColors[editingColorIndex] = { name: newColorName, hex: newColorHex };
         return newColors;
       });
-      setEditingColorIndex(null); // Exit edit mode
+      setEditingColorIndex(null); 
     } else {
       // Add new color
       setTempColors(prev => [...prev, { name: newColorName, hex: newColorHex }]);
@@ -160,11 +160,9 @@ const AdminDashboard: React.FC = () => {
 
   const removeTempColor = (idx: number) => {
     setTempColors(prev => prev.filter((_, i) => i !== idx));
-    // If we are editing the color that was deleted, cancel edit
     if (editingColorIndex === idx) {
       cancelColorEdit();
     } else if (editingColorIndex !== null && editingColorIndex > idx) {
-      // If we deleted a color before the one being edited, adjust index
       setEditingColorIndex(editingColorIndex - 1);
     }
   };
@@ -186,15 +184,12 @@ const AdminDashboard: React.FC = () => {
     };
 
     if (editingVariantId) {
-      // Update existing
       setVariants(prev => prev.map(v => v.id === editingVariantId ? variantData : v));
       setEditingVariantId(null);
     } else {
-      // Add new
       setVariants(prev => [...prev, variantData]);
     }
     
-    // Clear variant inputs
     clearVariantForm();
   };
 
@@ -207,12 +202,7 @@ const AdminDashboard: React.FC = () => {
     setTempPriceSac(variant.priceSacoleira.toString());
     setTempColors([...variant.colors]);
     
-    // Reset color edit state
-    setEditingColorIndex(null);
-    setNewColorName('');
-    setNewColorHex('#000000');
-    
-    // Scroll to form
+    cancelColorEdit();
     variantFormRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
@@ -242,7 +232,7 @@ const AdminDashboard: React.FC = () => {
       return;
     }
     if (variants.length === 0) {
-      alert("Adicione pelo menos uma variante de tamanho/referência.");
+      alert("Adicione pelo menos uma variante.");
       return;
     }
 
@@ -270,6 +260,7 @@ const AdminDashboard: React.FC = () => {
       navigate('/');
     } catch (error) {
       console.error("Error saving:", error);
+      alert("Erro ao salvar produto.");
     } finally {
       setIsSaving(false);
     }
