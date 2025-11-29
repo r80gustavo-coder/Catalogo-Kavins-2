@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
@@ -15,6 +16,8 @@ const ProductDetails: React.FC = () => {
   if (!product) {
     return <div className="p-10 text-center">Produto não encontrado.</div>;
   }
+  
+  const displayCategory = product.category === 'Macacões' ? 'Camisetas' : product.category;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -62,7 +65,7 @@ const ProductDetails: React.FC = () => {
         {/* Info */}
         <div>
            <div className="mb-2">
-             <span className="text-sm font-medium text-secondary uppercase tracking-wider">{product.category}</span>
+             <span className="text-sm font-medium text-secondary uppercase tracking-wider">{displayCategory}</span>
            </div>
            <h1 className="text-3xl font-serif font-bold text-gray-900 mb-4">{product.name}</h1>
            
@@ -74,7 +77,7 @@ const ProductDetails: React.FC = () => {
            </div>
 
            <div className="border-t border-gray-100 pt-6 space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Opções Disponíveis</h3>
+              <h3 className="text-lg font-medium text-gray-900">Referências Vinculadas</h3>
               
               {product.variants.map(variant => {
                  const price = user 
@@ -85,7 +88,7 @@ const ProductDetails: React.FC = () => {
                    <div key={variant.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 shadow-sm">
                       <div className="flex justify-between items-start mb-3">
                          <div>
-                            {/* Specific Variant Name Displayed Above Reference */}
+                            {/* Specific Variant Name (comes from Reference Base name now) */}
                             {variant.name && (
                                 <div className="text-sm font-semibold text-secondary uppercase mb-1">{variant.name}</div>
                             )}
@@ -107,7 +110,7 @@ const ProductDetails: React.FC = () => {
                       </div>
 
                       <div>
-                        <span className="text-xs font-medium text-gray-500 uppercase block mb-2">Cores</span>
+                        <span className="text-xs font-medium text-gray-500 uppercase block mb-2">Cores Disponíveis</span>
                         <div className="flex flex-wrap gap-3">
                           {variant.colors.map((color, idx) => (
                              <div key={idx} className="flex items-center group">

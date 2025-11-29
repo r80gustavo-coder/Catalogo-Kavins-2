@@ -1,3 +1,4 @@
+
 export enum UserRole {
   ADMIN = 'ADMIN',
   REPRESENTATIVE = 'REPRESENTATIVE',
@@ -15,9 +16,24 @@ export interface Color {
   hex: string;
 }
 
+// Interface para a Referência Base (Master Data)
+export interface ReferenceDefinition {
+  id: string;
+  code: string; // O código da referência (ex: 001)
+  name: string; // Nome interno/genérico (ex: Vestido Longo)
+  category: string;
+  sizeRange: SizeRange;
+  priceRepresentative: number;
+  priceSacoleira: number;
+  colors: Color[];
+  createdAt: number;
+}
+
+// Interface antiga mantida para compatibilidade visual, 
+// mas agora será populada dinamicamente via ReferenceDefinition
 export interface ProductVariant {
   id: string;
-  name?: string; // Specific name for this variant (e.g. "Estampa Floral")
+  name?: string; 
   reference: string;
   sizeRange: SizeRange;
   priceRepresentative: number;
@@ -27,14 +43,20 @@ export interface ProductVariant {
 
 export interface Product {
   id: string;
-  name: string;
+  name: string; // Título do anúncio/foto
   description: string;
   fabric: string;
-  category: string;
-  images: string[]; // Base64 strings
+  category: string; // Categoria principal do anúncio
+  images: string[]; 
   coverImageIndex: number;
   isFeatured: boolean;
+  
+  // Novo campo: IDs das referências vinculadas
+  referenceIds: string[];
+  
+  // Campo legado/calculado: variants populadas para o frontend usar
   variants: ProductVariant[];
+  
   createdAt: number;
 }
 

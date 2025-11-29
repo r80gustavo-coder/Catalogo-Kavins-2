@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Product, UserRole } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +11,7 @@ interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { user } = useAuth();
 
-  // Determine pricing display based on role
+  // Determine pricing display based on role and LINKED REFERENCES
   const getPriceRange = () => {
     if (!user) return null;
 
@@ -18,6 +19,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     let maxPrice = -Infinity;
     let hasPrice = false;
 
+    // Use variants (which are hydrated with Reference data in DataContext)
     product.variants.forEach(v => {
       const price = user.role === UserRole.SACOLEIRA ? v.priceSacoleira : v.priceRepresentative;
       if (price) {
@@ -38,7 +40,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   // Collect all unique size ranges available
   const sizesAvailable = Array.from(new Set(product.variants.map(v => v.sizeRange)));
   
-  // Collect all unique references
+  // Collect all unique references codes
   const references = Array.from(new Set(product.variants.map(v => v.reference)));
 
   // Display 'Camisetas' if the legacy category is 'Macacões'
@@ -81,7 +83,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
 
         <div className="mt-1 text-xs text-gray-400 truncate">
-             Ref: {references.join(' / ')}
+             {references.length > 0 ? `Ref: ${references.join(' / ')}` : 'Sem ref vinculada'}
         </div>
 
         <div className="mt-3 flex items-center justify-between">
