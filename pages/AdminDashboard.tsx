@@ -140,7 +140,7 @@ const ReferenceManager: React.FC<{
         resetForm();
     };
 
-    // Color logic (same as before)
+    // Color logic
     const handleColorAction = () => {
         if (!newColorName) return;
         if (editingColorIndex !== null) {
@@ -153,6 +153,17 @@ const ReferenceManager: React.FC<{
         }
         setNewColorName('');
         setNewColorHex('#000000');
+    };
+
+    // Delete color logic
+    const handleDeleteColor = () => {
+        if (editingColorIndex !== null) {
+            const updated = colors.filter((_, i) => i !== editingColorIndex);
+            setColors(updated);
+            setNewColorName('');
+            setNewColorHex('#000000');
+            setEditingColorIndex(null);
+        }
     };
 
     const filteredRefs = references.filter(r => 
@@ -202,7 +213,7 @@ const ReferenceManager: React.FC<{
                         <label className="block text-xs font-medium text-gray-700 mb-2">Cores</label>
                         <div className="flex flex-wrap gap-2 mb-2">
                             {colors.map((c, i) => (
-                                <div key={i} onClick={() => { setNewColorName(c.name); setNewColorHex(c.hex); setEditingColorIndex(i); }} className="cursor-pointer flex items-center bg-gray-50 border rounded-full px-2 py-1 text-xs">
+                                <div key={i} onClick={() => { setNewColorName(c.name); setNewColorHex(c.hex); setEditingColorIndex(i); }} className={`cursor-pointer flex items-center bg-gray-50 border rounded-full px-2 py-1 text-xs ${editingColorIndex === i ? 'ring-2 ring-secondary border-secondary' : ''}`}>
                                     <span className="w-3 h-3 rounded-full mr-1" style={{backgroundColor: c.hex}}></span>
                                     {c.name}
                                 </div>
@@ -211,9 +222,14 @@ const ReferenceManager: React.FC<{
                         <div className="flex gap-1 items-end">
                             <input type="color" value={newColorHex} onChange={e => setNewColorHex(e.target.value)} className="h-8 w-8 p-0 border rounded cursor-pointer" />
                             <input type="text" value={newColorName} onChange={e => setNewColorName(e.target.value)} placeholder="Nome Cor" className="flex-1 border p-1.5 rounded text-sm" />
-                            <button type="button" onClick={handleColorAction} className="bg-gray-800 text-white p-1.5 rounded hover:bg-black">
+                            <button type="button" onClick={handleColorAction} className="bg-gray-800 text-white p-1.5 rounded hover:bg-black" title={editingColorIndex !== null ? "Atualizar Cor" : "Adicionar Cor"}>
                                 {editingColorIndex !== null ? <RefreshCw size={16}/> : <Plus size={16}/>}
                             </button>
+                            {editingColorIndex !== null && (
+                                <button type="button" onClick={handleDeleteColor} className="bg-red-500 text-white p-1.5 rounded hover:bg-red-600" title="Excluir Cor">
+                                    <Trash2 size={16}/>
+                                </button>
+                            )}
                         </div>
                     </div>
 
